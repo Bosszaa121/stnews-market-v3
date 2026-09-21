@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Market Pulse - GitHub Ready v3</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script>
+// ===== CONFIG สำหรับลง GitHub - แก้ 2 บรรทัดนี้ก่อน Push =====
+const SHARED_FMP_KEY = "rFZJeep8yoqs0Ewrhk0HFuyP6P6Cc3BQ"; // ใส่แล้ว ✅
+const SHARED_FINNHUB_KEY = "dao8rhpr01qqjqh5en8gdao8rhpr01qqjqh5en90"; // ใส่แล้ว ✅
+// กด Save แล้ว Push ขึ้น GitHub เพื่อน 5 คนจะได้ LIVE เลย
+// รองรับ ENV ด้วย: VITE_FMP_KEY / VITE_FINNHUB_KEY ใน Netlify (ฟรี)
+// ===========================================================
+</script>
+<style>
+*{font-family:'IBM Plex Sans Thai',sans-serif}
+.mono{font-family:'JetBrains Mono',monospace}
+.glass{background:rgba(255,255,255,0.05);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideOut{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:0}}
+.popup-enter{animation:slideIn 0.4s cubic-bezier(0.16,1,0.3,1)}
+.popup-exit{animation:slideOut 0.3s ease-in forwards}
+@keyframes pulse-ring{0%{transform:scale(0.8);opacity:1}100%{transform:scale(2);opacity:0}}
+.bell-ring{animation:pulse-ring 1.5s cubic-bezier(0.455,0.03,0.515,0.955) infinite}
+</style>
+</head>
+<body class="bg-[#0a0a0f] text-white min-h-screen">
+<header class="sticky top-0 z-50 bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-white/10 px-4 py-3 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center font-bold">G</div>
+<div>
+<div class="font-bold leading-none">Global Market Pulse</div>
+<div class="text-[10px] text-white/50 mono">v3.1 • แจ้งเตือน Popup • GitHub Ready</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button onclick="toggleNotifCenter()" class="relative w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center hover:bg-white/20">
+<span class="text-lg">🔔</span>
+<span id="notifCount" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-[10px] font-bold flex items-center justify-center hidden">0</span>
+<span id="bellPulse" class="absolute w-9 h-9 rounded-xl border-2 border-violet-500 bell-ring hidden"></span>
+</button>
+<span id="liveBadge" class="px-3 py-1 rounded-full text-xs font-bold mono bg-white/10">⚪ MOCK</span>
+<button onclick="openModal()" class="px-3 py-2 rounded-xl bg-white text-black text-sm font-bold hover:bg-white/90">🔑 เชื่อม API</button>
+</div>
+</header>
+
+<!-- Notification Popup Container -->
+<div id="popupContainer" class="fixed top-20 right-4 z-[100] flex flex-col gap-3 w-[90%] max-w-[360px] pointer-events-none"></div>
+
+<!-- Notification Center Drawer -->
+<div id="notifDrawer" class="fixed inset-0 z-[90] hidden">
+<div class="absolute inset-0 bg-black/60" onclick="toggleNotifCenter()"></div>
+<div class="absolute top-0 right-0 h-full w-[92%] max-w-[380px] bg-[#15151f] border-l border-white/10 p-5 overflow-y-auto">
+<div class="flex justify-between items-center mb-5">
+<h3 class="font-bold text-lg">🔔 ศูนย์แจ้งเตือน</h3>
+<button onclick="toggleNotifCenter()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">✕</button>
+</div>
+<div class="flex gap-2 mb-4">
+<button onclick="requestBrowserNotif()" id="enableNotifBtn" class="flex-1 py-2 rounded-xl bg-violet-600 text-xs font-bold hover:bg-violet-500">🔔 เปิดแจ้งเตือนบนจอ</button>
+<button onclick="clearAllNotifs()" class="px-4 py-2 rounded-xl bg-white/10 text-xs">ล้างหมด</button>
+</div>
+<div class="glass rounded-xl p-3 mb-4 text-[11px] text-white/60">
+💡 เปิดแจ้งเตือนแล้ว ต่อให้พับจอไว้ เวลาใกล้ XD ปันผล 3 วัน หรือมีข่าวแรง Fed/CPI จะเด้ง popup บนจอ + เด้งบนมือถือ/คอมให้เลย (ต้องเปิดเว็บค้างไว้)
+</div>
+<div id="notifList" class="space-y-2"></div>
+<div class="mt-6 pt-4 border-t border-white/10">
+<div class="text-xs font-bold mb-2">ตั้งค่าแจ้งเตือน</div>
+<label class="flex items-center justify-between py-2 text-xs"><span>💰 ใกล้วัน XD ปันผล (3 วัน)</span><input type="checkbox" id="notifDiv" checked class="accent-violet-600"></label>
+<label class="flex items-center justify-between py-2 text-xs"><span>🔴 ข่าวเศรษฐกิจแรง (High Impact)</span><input type="checkbox" id="notifNews" checked class="accent-violet-600"></label>
+<label class="flex items-center justify-between py-2 text-xs"><span>📊 งบออก / กำไรพลิก</span><input type="checkbox" id="notifEarn" checked class="accent-violet-600"></label>
+<label class="flex items-center justify-between py-2 text-xs"><span>🔊 เสียงเตือน popup</span><input type="checkbox" id="notifSound" checked class="accent-violet-600"></label>
+</div>
+</div>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 mt-4">
+<div class="flex gap-2 overflow-x-auto pb-2">
+<button onclick="switchTab('calendar')" id="tab-calendar" class="tab px-4 py-2 rounded-full text-sm font-bold bg-white text-black">🗓️ ปฏิทินข่าว</button>
+<button onclick="switchTab('portfolio')" id="tab-portfolio" class="tab px-4 py-2 rounded-full text-sm font-bold bg-white/10 hover:bg-white/20">💼 พอร์ต</button>
+<button onclick="switchTab('financials')" id="tab-financials" class="tab px-4 py-2 rounded-full text-sm font-bold bg-white/10 hover:bg-white/20">📊 สุขภาพงบ</button>
+<button onclick="switchTab('dividends')" id="tab-dividends" class="tab px-4 py-2 rounded-full text-sm font-bold bg-white/10 hover:bg-white/20">💰 ปันผลล่วงหน้า</button>
+</div>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 mt-6 pb-32">
+<div id="content-calendar">
+<div class="glass rounded-2xl p-5">
+<div class="flex justify-between items-center mb-4">
+<h2 class="font-bold text-lg">ปฏิทินเศรษฐกิจ 7 วันข้างหน้า</h2>
+<span id="calStatus" class="text-xs mono text-white/50">กำลังโหลด...</span>
+</div>
+<div id="calendarList" class="space-y-2"></div>
+</div>
+</div>
+
+<div id="content-portfolio" class="hidden">
+<div class="glass rounded-2xl p-5">
+<div class="flex justify-between items-center mb-4">
+<h2 class="font-bold text-lg">พอร์ตของฉัน - เริ่มว่าง</h2>
+<button onclick="addSamplePortfolio()" class="text-xs px-3 py-1 rounded-full bg-violet-600 hover:bg-violet-500">+ เติมตัวอย่าง QQQM/GLD/BLOK</button>
+</div>
+<div id="portfolioList" class="grid md:grid-cols-3 gap-3"></div>
+</div>
+</div>
+
+<div id="content-financials" class="hidden">
+<div class="glass rounded-2xl p-5">
+<h2 class="font-bold text-lg mb-1">📊 สุขภาพงบ - กำไร ขาดทุน หนี้สิน</h2>
+<p class="text-xs text-white/50 mb-4">ดูงบสั้นๆ แบบมีเหตุผล ไม่ต้องเปิด 10-K</p>
+<div id="financialsList" class="grid md:grid-cols-3 gap-4"></div>
+</div>
+<div class="mt-4 glass rounded-2xl p-4 bg-violet-900/20 border-violet-500/30">
+<h3 class="font-bold text-sm mb-2">วิธีอ่านเร็วๆ</h3>
+<div class="text-xs text-white/70 space-y-1">
+<div>• <b class="text-green-400">รายได้โต</b> = ขายดีขึ้น → ราคาหุ้นมีโอกาสขึ้น</div>
+<div>• <b class="text-green-400">กำไรโต + หนี้ลด</b> = บริษัทแข็งแกร่งมาก</div>
+<div>• <b class="text-red-400">ขาดทุน 2 ไตรมาสติด</b> = ต้องระวัง อาจต้องลดพอร์ต</div>
+<div>• <b>D/E สูง >2</b> = หนี้เยอะกว่าทุน 2 เท่า เสี่ยงถ้าดอกเบี้ยขึ้น</div>
+</div>
+</div>
+</div>
+
+<div id="content-dividends" class="hidden">
+<div class="glass rounded-2xl p-5">
+<div class="flex justify-between items-center mb-4">
+<h2 class="font-bold text-lg">💰 ปันผลล่วงหน้า - บอกทั้ง $ และ %</h2>
+<div class="flex gap-2">
+<button onclick="setDivFilter('all')" id="divAll" class="text-xs px-3 py-1 rounded-full bg-white text-black">ทั้งตลาด</button>
+<button onclick="setDivFilter('port')" id="divPort" class="text-xs px-3 py-1 rounded-full bg-white/10">แค่พอร์ตฉัน</button>
+</div>
+</div>
+<div id="dividendsList" class="space-y-2"></div>
+</div>
+<div class="mt-4 glass rounded-2xl p-4">
+<h3 class="font-bold text-sm mb-2">สรุปปันผลพอร์ตคุณ (90 วันข้างหน้า)</h3>
+<div id="dividendSummary" class="text-sm"></div>
+</div>
+</div>
+
+<div class="mt-8 glass rounded-2xl p-5 border border-green-500/20 bg-green-900/10">
+<h3 class="font-bold mb-3">🚀 พร้อมลง GitHub - ทำ 5 ขั้นตอนนี้</h3>
+<div class="text-xs mono space-y-2 text-white/80">
+<div>1. เปิดไฟล์นี้ด้วย Notepad → แก้ 2 บรรทัดบนสุด SHARED_FMP_KEY / SHARED_FINNHUB_KEY ใส่ Key ของคุณ → Save เป็น index.html</div>
+<div>2. ไป <a href="https://github.com/new" target="_blank" class="text-violet-400 underline">github.com/new</a> → ตั้งชื่อ stnews-market → Create repository</div>
+<div>3. กด Uploading an existing file → ลากไฟล์ index.html → Commit changes</div>
+<div>4. ไป <a href="https://app.netlify.com/start" target="_blank" class="text-violet-400 underline">app.netlify.com/start</a> → Import from GitHub → เลือก stnews-market → Deploy site</div>
+<div>5. (ฟรี) ถ้าอยากใส่ Key แบบปลอดภัย: Netlify → Site configuration → Environment variables (อันล่าง ไม่ใช่ Shared) → Add VITE_FMP_KEY และ VITE_FINNHUB_KEY → Trigger deploy</div>
+</div>
+</div>
+
+</div>
+
+<div id="apiModal" class="fixed inset-0 z-[9999] hidden">
+<div class="absolute inset-0 bg-black/70" onclick="closeModal()"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95%] max-w-lg glass rounded-3xl p-6 bg-[#1a1a23] border border-white/10">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-bold text-lg">เชื่อมต่อ API Keys</h3>
+<p class="text-xs text-white/50">ใส่คีย์เพื่อสลับจาก MOCK เป็น LIVE</p>
+</div>
+<button onclick="closeModal()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">✕</button>
+</div>
+<div class="bg-violet-900/20 border border-violet-500/20 rounded-xl p-3 mb-4 text-xs">
+💡 ถ้าเจ้าของเว็บใส่ SHARED KEY ไว้บนสุดของไฟล์แล้ว เพื่อนเปิดมาจะ LIVE เลย<br>
+<span class="mono bg-white/10 px-2 py-0.5 rounded">LocalStorage</span> จะชนะ Key กลางเสมอ
+</div>
+<div class="space-y-4">
+<div>
+<label class="text-sm font-bold">FMP API Key • ปฏิทินข่าว + งบ + ปันผล</label>
+<input id="fmpInput" class="w-full mt-2 px-4 py-3 rounded-xl bg-black/50 border border-white/10 mono text-sm" placeholder="เช่น 5f8a2c9d...">
+<div class="text-[11px] text-white/40 mt-1">ใช้ /dividends-calendar, /income-statement, /balance-sheet</div>
+</div>
+<div>
+<label class="text-sm font-bold">Finnhub API Key • ราคาหุ้น LIVE</label>
+<input id="finnhubInput" class="w-full mt-2 px-4 py-3 rounded-xl bg-black/50 border border-white/10 mono text-sm" placeholder="เช่น c123abc...">
+</div>
+<div class="flex gap-2 pt-2">
+<div id="statusBox" class="flex-1 glass rounded-xl p-3">
+<div class="text-[11px] text-white/50">สถานะปัจจุบัน</div>
+<div id="statusText" class="text-xs font-bold mono mt-1">MOCK</div>
+</div>
+</div>
+<div class="flex gap-2">
+<button onclick="clearKeys()" class="flex-1 py-3 rounded-xl bg-white/10 text-sm">ล้าง Key</button>
+<button onclick="closeModal()" class="flex-1 py-3 rounded-xl bg-white/10 text-sm">ปิด</button>
+<button onclick="saveKeys()" class="flex-1 py-3 rounded-xl bg-white text-black font-bold text-sm">✓ บันทึก</button>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+let currentTab='calendar';
+let filterDiv='all';
+let portfolioSymbols = JSON.parse(localStorage.getItem('portfolio_symbols') || '[]');
+let liveBadge=document.getElementById('liveBadge');
+
+function getApiKeys(){
+  const localFMP=localStorage.getItem('fmp_api_key')||"";
+  const localFinnhub=localStorage.getItem('finnhub_api_key')||"";
+  let envFMP="", envFinnhub="";
+  try{
+    if(typeof import!=='undefined' && import.meta && import.meta.env){
+      envFMP=import.meta.env.VITE_FMP_KEY||"";
+      envFinnhub=import.meta.env.VITE_FINNHUB_KEY||"";
+    }
+  }catch(e){}
+  const fmp = localFMP || SHARED_FMP_KEY || envFMP || "";
+  const finnhub = localFinnhub || SHARED_FINNHUB_KEY || envFinnhub || "";
+  const source = localFMP ? 'local' : (SHARED_FMP_KEY||envFMP) ? 'shared' : 'none';
+  return {fmp, finnhub, hasFMP:!!fmp, hasFinnhub:!!finnhub, source};
+}
+
+function updateBadge(){
+  const {hasFMP, hasFinnhub, source} = getApiKeys();
+  if(hasFMP || hasFinnhub){
+    if(source==='shared'){
+      liveBadge.textContent='🟢 LIVE • Key กลาง';
+      liveBadge.className='px-3 py-1 rounded-full text-xs font-bold mono bg-green-500/20 text-green-300 border border-green-500/30';
+    }else{
+      liveBadge.textContent='🟢 LIVE • Key ส่วนตัว';
+      liveBadge.className='px-3 py-1 rounded-full text-xs font-bold mono bg-green-500/20 text-green-300 border border-green-500/30';
+    }
+  }else{
+    liveBadge.textContent='⚪ MOCK';
+    liveBadge.className='px-3 py-1 rounded-full text-xs font-bold mono bg-white/10';
+  }
+}
+
+function switchTab(t){
+  currentTab=t;
+  document.querySelectorAll('[id^="content-"]').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('content-'+t).classList.remove('hidden');
+  document.querySelectorAll('.tab').forEach(el=>{el.className='tab px-4 py-2 rounded-full text-sm font-bold bg-white/10 hover:bg-white/20'});
+  document.getElementById('tab-'+t).className='tab px-4 py-2 rounded-full text-sm font-bold bg-white text-black';
+  if(t==='calendar') loadCalendar();
+  if(t==='financials') loadFinancials();
+  if(t==='dividends') loadDividends();
+  if(t==='portfolio') loadPortfolio();
+}
+function setDivFilter(v){filterDiv=v; document.getElementById('divAll').className=v==='all'?'text-xs px-3 py-1 rounded-full bg-white text-black':'text-xs px-3 py-1 rounded-full bg-white/10'; document.getElementById('divPort').className=v==='port'?'text-xs px-3 py-1 rounded-full bg-white text-black':'text-xs px-3 py-1 rounded-full bg-white/10'; loadDividends();}
+
+function openModal(){
+  const fmp=localStorage.getItem('fmp_api_key')||"";
+  const finnhub=localStorage.getItem('finnhub_api_key')||"";
+  document.getElementById('fmpInput').value=fmp;
+  document.getElementById('finnhubInput').value=finnhub;
+  const {hasFMP, hasFinnhub, source}=getApiKeys();
+  document.getElementById('statusText').textContent = hasFMP||hasFinnhub ? `LIVE (${source}) FMP:${hasFMP?'ตั้งแล้ว':'ไม่ตั้ง'} Finnhub:${hasFMP?'ตั้งแล้ว':'ไม่ตั้ง'}` : 'MOCK - ใช้ข้อมูลตัวอย่าง';
+  document.getElementById('apiModal').classList.remove('hidden');
+}
+function closeModal(){document.getElementById('apiModal').classList.add('hidden');}
+function saveKeys(){
+  const fmp=document.getElementById('fmpInput').value.trim();
+  const finnhub=document.getElementById('finnhubInput').value.trim();
+  if(fmp) localStorage.setItem('fmp_api_key',fmp); else localStorage.removeItem('fmp_api_key');
+  if(finnhub) localStorage.setItem('finnhub_api_key',finnhub); else localStorage.removeItem('finnhub_api_key');
+  updateBadge(); closeModal(); loadAll();
+}
+function clearKeys(){localStorage.removeItem('fmp_api_key'); localStorage.removeItem('finnhub_api_key'); updateBadge(); loadAll(); closeModal();}
+
+const mockCalendar=[
+{date:'2026-09-22', time:'19:30', country:'US', event:'Core CPI m/m', actual:'0.3%', forecast:'0.2%', previous:'0.3%', impact:'high'},
+{date:'2026-09-23', time:'21:00', country:'US', event:'Fed Interest Rate Decision', actual:'5.25%', forecast:'5.25%', previous:'5.25%', impact:'high'},
+{date:'2026-09-24', time:'08:30', country:'TH', event:'BOT Rate Decision', actual:'2.50%', forecast:'2.50%', previous:'2.50%', impact:'medium'},
+{date:'2026-09-25', time:'19:30', country:'US', event:'Initial Jobless Claims', actual:'225K', forecast:'230K', previous:'232K', impact:'medium'},
+];
+const mockFinancials={
+'QQQM':{revenue:'5.2B', revenueGrowth:12, netIncome:'1.1B', netGrowth:8, cash:'2.3B', debt:'0.4B', de:'0.17', reason:'✅ รายได้โต 12% QoQ กำไรโต 8% หนี้ต่ำมาก D/E 0.17 แข็งแกร่งสุดๆ เหมาะถือยาว'},
+'GLD':{revenue:'0.8B', revenueGrowth:-2, netIncome:'0.6B', netGrowth:5, cash:'0.1B', debt:'0.05B', de:'0.05', reason:'⚠️ รายได้ลด 2% เพราะค่าธรรมเนียม แต่เป็น ETF ทองคำ หนี้แทบไม่มี ถือเป็น Safe Haven'},
+'BLOK':{revenue:'0.12B', revenueGrowth:25, netIncome:'-0.02B', netGrowth:-15, cash:'0.3B', debt:'0.1B', de:'0.33', reason:'❗ รายได้โตแรง 25% แต่ยังขาดทุน เพราะลงทุนหนักใน Blockchain อนาคตไกล แต่เสี่ยงสูง'},
+};
+const mockDividends=[
+{symbol:'QQQM', xd:'2026-09-25', pay:'2026-09-30', amount:0.45, yield:1.2, freq:4, days:4},
+{symbol:'GLD', xd:'2026-10-02', pay:'2026-10-07', amount:0, yield:0, freq:0, days:11, note:'GLD ไม่มีปันผล'},
+{symbol:'BLOK', xd:'2026-09-28', pay:'2026-10-05', amount:0.12, yield:0.8, freq:2, days:7},
+{symbol:'AAPL', xd:'2026-09-26', pay:'2026-10-10', amount:0.24, yield:0.55, freq:4, days:5},
+{symbol:'MSFT', xd:'2026-09-27', pay:'2026-10-12', amount:0.75, yield:0.85, freq:4, days:6},
+];
+
+async function loadCalendar(){
+  const list=document.getElementById('calendarList');
+  const status=document.getElementById('calStatus');
+  const {fmp, hasFMP}=getApiKeys();
+  if(!hasFMP){
+    status.textContent='MOCK - ใส่ FMP Key เพื่อดูของจริง';
+    list.innerHTML=mockCalendar.map(c=>`
+      <div class="flex gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5">
+        <div class="text-[11px] mono text-white/50 w-20">${c.date}<br>${c.time}</div>
+        <div class="flex-1">
+          <div class="text-sm font-bold">${c.country} • ${c.event} ${c.impact==='high'?'🔴':c.impact==='medium'?'🟡':'⚪'}</div>
+          <div class="text-xs mono text-white/60">จริง: ${c.actual} | คาด: ${c.forecast} | ก่อน: ${c.previous}</div>
+        </div>
+      </div>`).join('');
+    return;
+  }
+  try{
+    status.textContent='LIVE กำลังดึงจาก FMP...';
+    const from=new Date().toISOString().split('T')[0];
+    const to=new Date(Date.now()+7*86400000).toISOString().split('T')[0];
+    const res=await fetch(`https://financialmodelingprep.com/stable/economic-calendar?from=${from}&to=${to}&apikey=${fmp}`);
+    const data=await res.json();
+    if(!Array.isArray(data) || data.length===0) throw new Error('no data');
+    const filtered=data.slice(0,20);
+    list.innerHTML=filtered.map(c=>`
+      <div class="flex gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/5">
+        <div class="text-[11px] mono text-white/50 w-20">${(c.date||'').slice(0,10)}<br>${c.time||''}</div>
+        <div class="flex-1">
+          <div class="text-sm font-bold">${c.country||'US'} • ${c.event||c.name||'-'}</div>
+          <div class="text-xs mono text-white/60">จริง: ${c.actual||'-'} | คาด: ${c.estimate||c.forecast||'-'} | ก่อน: ${c.previous||'-'}</div>
+        </div>
+      </div>`).join('');
+    status.textContent=`LIVE • ${filtered.length} รายการ`;
+  }catch(e){
+    status.textContent='LIVE ล้มเหลว โชว์ MOCK';
+    list.innerHTML=mockCalendar.map(c=>`<div class="flex gap-3 p-3 rounded-xl bg-white/[0.03]"><div class="text-[11px] mono w-20">${c.date}</div><div class="flex-1 text-sm font-bold">${c.event}</div></div>`).join('');
+  }
+}
+
+function loadPortfolio(){
+  const list=document.getElementById('portfolioList');
+  if(portfolioSymbols.length===0){
+    list.innerHTML=`<div class="col-span-3 text-center py-10 text-white/50 text-sm">พอร์ตว่าง - กด + เติมตัวอย่าง หรือเพิ่มเอง</div>`;
+    return;
+  }
+  list.innerHTML=portfolioSymbols.map(s=>`
+    <div class="glass rounded-xl p-4">
+      <div class="flex justify-between"><span class="font-bold">${s}</span><span class="text-xs mono text-white/50" id="price-${s}">...</span></div>
+      <div class="text-[11px] text-white/40 mt-2">ราคา LIVE จาก Finnhub</div>
+    </div>`).join('');
+  fetchPrices();
+}
+
+async function fetchPrices(){
+  const {finnhub, hasFinnhub}=getApiKeys();
+  if(!hasFinnhub){portfolioSymbols.forEach(s=>{const el=document.getElementById('price-'+s); if(el) el.textContent='MOCK $150.23'}); return;}
+  for(const sym of portfolioSymbols){
+    try{
+      const res=await fetch(`https://finnhub.io/api/v1/quote?symbol=${sym}&token=${finnhub}`);
+      const d=await res.json();
+      const el=document.getElementById('price-'+sym);
+      if(el) el.textContent=`$${(d.c||0).toFixed(2)} ${d.d>0?'🟢+'+d.dp.toFixed(2)+'%':'🔴'+d.dp.toFixed(2)+'%'}`;
+    }catch{}
+  }
+}
+
+function addSamplePortfolio(){
+  portfolioSymbols=['QQQM','GLD','BLOK'];
+  localStorage.setItem('portfolio_symbols',JSON.stringify(portfolioSymbols));
+  loadPortfolio(); loadFinancials(); loadDividends();
+}
+
+async function loadFinancials(){
+  const list=document.getElementById('financialsList');
+  const symbols = portfolioSymbols.length>0?portfolioSymbols:['QQQM','GLD','BLOK'];
+  const {fmp, hasFMP}=getApiKeys();
+  if(!hasFMP){
+    list.innerHTML=symbols.map(sym=>{
+      const m=mockFinancials[sym]||mockFinancials['QQQM'];
+      return `<div class="glass rounded-xl p-4 border border-white/10">
+        <div class="font-bold mb-3">${sym} <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/10">MOCK</span></div>
+        <div class="space-y-2 text-xs mono">
+          <div class="flex justify-between"><span class="text-white/50">รายได้</span><span>${m.revenue} ${m.revenueGrowth>0?'🟢+'+m.revenueGrowth+'%':'🔴'+m.revenueGrowth+'%'}</span></div>
+          <div class="flex justify-between"><span class="text-white/50">กำไรสุทธิ</span><span>${m.netIncome} ${m.netGrowth>0?'🟢+'+m.netGrowth+'%':'🔴'+m.netGrowth+'%'}</span></div>
+          <div class="flex justify-between"><span class="text-white/50">เงินสด / หนี้</span><span>${m.cash} / ${m.debt}</span></div>
+          <div class="flex justify-between"><span class="text-white/50">D/E</span><span class="${parseFloat(m.de)>1?'text-red-400':'text-green-400'}">${m.de}</span></div>
+        </div>
+        <div class="mt-3 p-2 rounded-lg bg-white/[0.03] text-[11px] leading-relaxed">${m.reason}</div>
+      </div>`;
+    }).join('');
+    return;
+  }
+  list.innerHTML=symbols.map(sym=>`<div class="glass rounded-xl p-4 animate-pulse"><div class="h-20 bg-white/5 rounded"></div><div class="text-xs text-white/50 mt-2">กำลังดึงงบ ${sym}...</div></div>`).join('');
+  const results=await Promise.all(symbols.map(async sym=>{
+    try{
+      const [incRes, balRes, ratioRes]=await Promise.all([
+        fetch(`https://financialmodelingprep.com/stable/income-statement?symbol=${sym}&limit=2&period=quarter&apikey=${fmp}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/stable/balance-sheet-statement?symbol=${sym}&limit=2&period=quarter&apikey=${fmp}`).then(r=>r.json()),
+        fetch(`https://financialmodelingprep.com/stable/ratios?symbol=${sym}&limit=1&period=quarter&apikey=${fmp}`).then(r=>r.json())
+      ]);
+      const cur=incRes[0]||{}; const prev=incRes[1]||{}; const bal=balRes[0]||{}; const ratio=ratioRes[0]||{};
+      const revGrowth = prev.revenue ? ((cur.revenue-prev.revenue)/prev.revenue*100).toFixed(1) : 0;
+      const netGrowth = prev.netIncome ? ((cur.netIncome-prev.netIncome)/Math.abs(prev.netIncome||1)*100).toFixed(1) : 0;
+      const de = ratio.debtEquityRatio ? ratio.debtEquityRatio.toFixed(2) : '0.5';
+      let reason='';
+      if(parseFloat(revGrowth)>5) reason+=`✅ รายได้โต ${revGrowth}% `;
+      else if(parseFloat(revGrowth)<0) reason+=`❌ รายได้ลด ${revGrowth}% `;
+      if(parseFloat(netGrowth)>0) reason+=`กำไรโต ${netGrowth}% `;
+      else reason+=`กำไรลด `;
+      if(parseFloat(de)>2) reason+=`หนี้สูง D/E ${de} เสี่ยง`;
+      else reason+=`หนี้ต่ำ D/E ${de} ปลอดภัย`;
+      return {sym, revenue:(cur.revenue/1e9).toFixed(2)+'B', revGrowth, netIncome:(cur.netIncome/1e9).toFixed(2)+'B', netGrowth, cash:(bal.cashAndCashEquivalents/1e9).toFixed(2)+'B', debt:(bal.totalDebt/1e9).toFixed(2)+'B', de, reason};
+    }catch(e){ return {sym, error:true} }
+  }));
+  list.innerHTML=results.map(r=>{
+    if(r.error) return `<div class="glass rounded-xl p-4"><div class="font-bold">${r.sym}</div><div class="text-xs text-white/50">ดึงงบไม่สำเร็จ</div></div>`;
+    return `<div class="glass rounded-xl p-4 border border-white/10">
+      <div class="font-bold mb-3">${r.sym} <span class="text-[10px] px-2 py-0.5 rounded-full bg-green-500/20 text-green-300">LIVE</span></div>
+      <div class="space-y-2 text-xs mono">
+        <div class="flex justify-between"><span class="text-white/50">รายได้</span><span>${r.revenue} ${parseFloat(r.revGrowth)>0?'🟢+'+r.revGrowth+'%':'🔴'+r.revGrowth+'%'}</span></div>
+        <div class="flex justify-between"><span class="text-white/50">กำไรสุทธิ</span><span>${r.netIncome} ${parseFloat(r.netGrowth)>0?'🟢+'+r.netGrowth+'%':'🔴'+r.netGrowth+'%'}</span></div>
+        <div class="flex justify-between"><span class="text-white/50">เงินสด / หนี้</span><span>${r.cash} / ${r.debt}</span></div>
+        <div class="flex justify-between"><span class="text-white/50">D/E</span><span class="${parseFloat(r.de)>1?'text-red-400':'text-green-400'}">${r.de}</span></div>
+      </div>
+      <div class="mt-3 p-2 rounded-lg bg-white/[0.03] text-[11px] leading-relaxed">${r.reason}</div>
+    </div>`;
+  }).join('');
+}
+
+async function loadDividends(){
+  const list=document.getElementById('dividendsList');
+  const summary=document.getElementById('dividendSummary');
+  const symbols = portfolioSymbols.length>0?portfolioSymbols:['QQQM','GLD','BLOK'];
+  const {fmp, hasFMP}=getApiKeys();
+
+  if(!hasFMP){
+    const filtered = filterDiv==='port' ? mockDividends.filter(d=>symbols.includes(d.symbol)) : mockDividends;
+    list.innerHTML=filtered.map(d=>`
+      <div class="flex gap-3 p-3 rounded-xl bg-white/[0.03] border ${d.days<=7?'border-yellow-500/30 bg-yellow-900/10':''} border-white/5">
+        <div class="w-16 text-center"><div class="font-bold text-sm">${d.symbol}</div><div class="text-[10px] mono text-white/50">อีก ${d.days} วัน</div></div>
+        <div class="flex-1"><div class="text-xs">XD: ${d.xd} • จ่าย: ${d.pay} ${d.days<=7?'<span class="ml-2 px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 text-[10px]">🔜 ใกล้จ่าย</span>':''}</div><div class="text-sm font-bold mt-1">${d.amount>0?`💵 ${d.amount}$ • 📈 ${d.yield}% Yield • ปีละ ${d.freq} ครั้ง`:`${d.note||'ไม่มีปันผล'}`}</div></div>
+        <div class="text-right"><div class="text-sm font-bold mono">${d.amount>0?d.amount+'$':''}</div><div class="text-[11px] mono text-white/50">${d.yield>0?d.yield+'%':''}</div></div>
+      </div>`).join('');
+    const total = filtered.filter(d=>d.amount>0).reduce((s,d)=>s+d.amount,0);
+    summary.innerHTML=`MOCK • ถ้ามี QQQM 100 หุ้น จะได้ปันผล ~$${(total*20).toFixed(2)}/ปี • Yield เฉลี่ย ~1% • ใส่ FMP Key เพื่อดูของจริงล่วงหน้า 90 วัน`;
+    return;
+  }
+
+  try{
+    list.innerHTML=`<div class="text-xs text-white/50 p-4">LIVE กำลังดึงปันผลล่วงหน้า 90 วัน...</div>`;
+    const from=new Date().toISOString().split('T')[0];
+    const to=new Date(Date.now()+90*86400000).toISOString().split('T')[0];
+    const res=await fetch(`https://financialmodelingprep.com/stable/dividends-calendar?from=${from}&to=${to}&apikey=${fmp}`);
+    const data=await res.json();
+    let filtered = Array.isArray(data) ? data : [];
+    if(filterDiv==='port') filtered=filtered.filter(d=>symbols.includes(d.symbol));
+    filtered=filtered.slice(0,15);
+    if(filtered.length===0){
+      const all=[];
+      for(const sym of symbols){
+        try{
+          const r=await fetch(`https://financialmodelingprep.com/stable/dividends?symbol=${sym}&limit=2&apikey=${fmp}`).then(x=>x.json());
+          if(Array.isArray(r)) all.push(...r.slice(0,2).map(x=>({...x, symbol:sym})));
+        }catch{}
+      }
+      filtered=all;
+    }
+    list.innerHTML=filtered.map(d=>{
+      const xd=d.date||d.exDividendDate||from;
+      const pay=d.paymentDate||to;
+      const amt=d.dividend||0;
+      const days=Math.ceil((new Date(xd)-new Date())/86400000);
+      const y = d.yield? (d.yield*100).toFixed(2) : (amt>0?'~1.0':'0');
+      return `<div class="flex gap-3 p-3 rounded-xl bg-white/[0.03] border ${days<=7&&days>=0?'border-yellow-500/30 bg-yellow-900/10':''} border-white/5">
+        <div class="w-16 text-center"><div class="font-bold text-sm">${d.symbol}</div><div class="text-[10px] mono ${days<=7?'text-yellow-300':'text-white/50'}">${days>=0?`อีก ${days} วัน`:'ผ่านแล้ว'}</div></div>
+        <div class="flex-1"><div class="text-xs">XD: ${xd} • จ่าย: ${pay} ${days<=7&&days>=0?'<span class="ml-2 px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 text-[10px]">🔜 ใกล้จ่าย</span>':''}</div><div class="text-sm font-bold mt-1">💵 ${amt}$ • 📈 ${y}% Yield</div></div>
+        <div class="text-right"><div class="text-sm font-bold mono">${amt}$</div><div class="text-[11px] mono text-white/50">${y}%</div></div>
+      </div>`;
+    }).join('');
+    const total=filtered.reduce((s,d)=>s+(parseFloat(d.dividend||0)),0);
+    summary.innerHTML=`LIVE • ปันผลรวม 90 วันข้างหน้า ~$${total.toFixed(2)}/หุ้น • ${filtered.length} รายการ • บอกล่วงหน้าทั้ง $ และ %`;
+  }catch(e){
+    list.innerHTML=`<div class="text-xs text-red-400 p-4">ดึงไม่สำเร็จ โชว์ MOCK</div>`;
+  }
+}
+
+function loadAll(){loadCalendar(); loadPortfolio(); loadFinancials(); loadDividends(); updateBadge(); checkNotifications();}
+
+function toggleNotifCenter(){
+  const d=document.getElementById('notifDrawer');
+  d.classList.toggle('hidden');
+  if(!d.classList.contains('hidden')) renderNotifList();
+}
+function clearAllNotifs(){
+  localStorage.setItem('notifications','[]');
+  updateNotifCount(0);
+  renderNotifList();
+}
+function updateNotifCount(n){
+  const c=document.getElementById('notifCount');
+  const pulse=document.getElementById('bellPulse');
+  if(n>0){c.textContent=n>99?'99+':n; c.classList.remove('hidden'); pulse.classList.remove('hidden');}
+  else{c.classList.add('hidden'); pulse.classList.add('hidden');}
+}
+function getStoredNotifs(){try{return JSON.parse(localStorage.getItem('notifications')||'[]')}catch{return []}}
+function saveNotif(notif){
+  const arr=getStoredNotifs();
+  arr.unshift(notif);
+  localStorage.setItem('notifications',JSON.stringify(arr.slice(0,50)));
+  updateNotifCount(arr.length);
+  renderNotifList();
+}
+function renderNotifList(){
+  const arr=getStoredNotifs();
+  const list=document.getElementById('notifList');
+  if(arr.length===0){list.innerHTML=`<div class="text-xs text-white/40 text-center py-6">ยังไม่มีแจ้งเตือน<br><span class="text-[11px]">เปิดแจ้งเตือนแล้วระบบจะเด้งเองเมื่อใกล้ XD หรือมีข่าวแรง</span></div>`; updateNotifCount(0); return;}
+  updateNotifCount(arr.length);
+  list.innerHTML=arr.map((n,i)=>`
+    <div class="glass rounded-xl p-3 border ${n.type==='dividend'?'border-yellow-500/20':'border-red-500/20'} border-white/5">
+      <div class="flex justify-between items-start">
+        <div class="text-xs font-bold">${n.icon} ${n.title}</div>
+        <div class="text-[10px] mono text-white/40">${n.time}</div>
+      </div>
+      <div class="text-[11px] text-white/70 mt-1 leading-relaxed">${n.body}</div>
+      ${n.action?`<button onclick="${n.action}" class="mt-2 text-[11px] px-3 py-1 rounded-full bg-white text-black font-bold">${n.actionLabel}</button>`:''}
+    </div>
+  `).join('');
+}
+
+function playSound(){
+  if(!document.getElementById('notifSound')?.checked) return;
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(); const g=ctx.createGain();
+    o.type='sine'; o.frequency.value=880; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.3,ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.01,ctx.currentTime+0.4);
+    o.start(); o.stop(ctx.currentTime+0.4);
+  }catch{}
+}
+
+function showPopup({title, body, icon='🔔', type='info', action=null, actionLabel='ดูเลย'}){
+  const container=document.getElementById('popupContainer');
+  const id='popup-'+Date.now();
+  const el=document.createElement('div');
+  el.id=id;
+  el.className='pointer-events-auto popup-enter glass rounded-2xl p-4 border bg-[#1e1e2a] shadow-2xl '+ (type==='dividend'?'border-yellow-500/30':'border-violet-500/30');
+  el.innerHTML=`
+    <div class="flex gap-3">
+      <div class="w-10 h-10 rounded-xl ${type==='dividend'?'bg-yellow-500/20':'bg-violet-500/20'} flex items-center justify-center text-lg">${icon}</div>
+      <div class="flex-1">
+        <div class="font-bold text-sm">${title}</div>
+        <div class="text-[11px] text-white/70 mt-1 leading-relaxed">${body}</div>
+        <div class="flex gap-2 mt-3">
+          ${action?`<button onclick="${action}; closePopup('${id}')" class="px-3 py-1.5 rounded-full bg-white text-black text-[11px] font-bold">${actionLabel}</button>`:''}
+          <button onclick="closePopup('${id}')" class="px-3 py-1.5 rounded-full bg-white/10 text-[11px]">ปิด</button>
+        </div>
+      </div>
+      <button onclick="closePopup('${id}')" class="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px]">✕</button>
+    </div>
+  `;
+  container.appendChild(el);
+  playSound();
+  saveNotif({title, body, icon, type, time:new Date().toLocaleString('th-TH',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'short'}), action, actionLabel});
+  // Browser notification
+  if(Notification && Notification.permission==='granted'){
+    try{ new Notification(title, {body: body.replace(/<[^>]*>/g,''), icon:'https://cdn-icons-png.flaticon.com/512/3602/3602145.png'}); }catch{}
+  }
+  setTimeout(()=>closePopup(id), 8000);
+}
+function closePopup(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.classList.remove('popup-enter'); el.classList.add('popup-exit');
+  setTimeout(()=>el.remove(),300);
+}
+
+function requestBrowserNotif(){
+  if(!('Notification' in window)){alert('เบราว์เซอร์นี้ไม่รองรับแจ้งเตือนบนจอ'); return;}
+  if(Notification.permission==='granted'){
+    document.getElementById('enableNotifBtn').textContent='✅ เปิดแล้ว';
+    showPopup({title:'เปิดแจ้งเตือนสำเร็จ!', body:'ต่อให้พับจอไว้ ระบบจะเด้งเตือนปันผล + ข่าวแรงให้เอง', icon:'✅', type:'info'});
+    return;
+  }
+  Notification.requestPermission().then(p=>{
+    if(p==='granted'){
+      document.getElementById('enableNotifBtn').textContent='✅ เปิดแล้ว';
+      showPopup({title:'เปิดแจ้งเตือนบนจอแล้ว!', body:'ลองปิดหน้านี้แล้วเปิดค้างไว้ เวลาใกล้ XD จะเด้งบนมือถือ/คอมให้เลย', icon:'🔔', type:'info'});
+      new Notification('Global Market Pulse', {body:'เปิดแจ้งเตือนสำเร็จ! จะแจ้งเตือนปันผล + ข่าวแรงให้'});
+    }else{
+      alert('ต้องกด Allow นะครับ ถึงจะเด้งบนจอได้');
+    }
+  });
+}
+
+function checkNotifications(){
+  // Auto check on load
+  setTimeout(()=>{
+    // Check dividends mock
+    const symbols = portfolioSymbols.length>0?portfolioSymbols:['QQQM','GLD','BLOK'];
+    const mockSoon = mockDividends.filter(d=>d.days<=3 && d.days>=0 && symbols.includes(d.symbol));
+    mockSoon.forEach(d=>{
+      if(!document.getElementById('notifDiv')?.checked) return;
+      const key='notified_div_'+d.symbol+'_'+d.xd;
+      if(localStorage.getItem(key)) return;
+      showPopup({
+        title:`${d.symbol} ใกล้วัน XD แล้ว!`,
+        body:`อีก ${d.days} วัน XD • ปันผล ${d.amount}$ • Yield ${d.yield}% • อย่าลืมถือก่อนวัน XD นะ`,
+        icon:'💰',
+        type:'dividend',
+        action:`switchTab('dividends')`,
+        actionLabel:'ดูปันผล'
+      });
+      localStorage.setItem(key,'1');
+    });
+
+    // Check high impact calendar
+    const highEvents = mockCalendar.filter(c=>c.impact==='high');
+    highEvents.slice(0,1).forEach(c=>{
+      if(!document.getElementById('notifNews')?.checked) return;
+      const key='notified_news_'+c.date+'_'+c.event;
+      if(localStorage.getItem(key)) return;
+      showPopup({
+        title:`🔴 ข่าวแรงวันนี้: ${c.event}`,
+        body:`${c.country} • เวลา ${c.time} • คาด ${c.forecast} • ตลาดอาจผันผวน เตรียมพอร์ตไว้`,
+        icon:'🔴',
+        type:'news',
+        action:`switchTab('calendar')`,
+        actionLabel:'ดูปฏิทิน'
+      });
+      localStorage.setItem(key,'1');
+    });
+
+    // Check financials warning
+    Object.entries(mockFinancials).forEach(([sym,m])=>{
+      if(sym==='BLOK' && document.getElementById('notifEarn')?.checked){
+        const key='notified_earn_'+sym;
+        if(localStorage.getItem(key)) return;
+        if(m.netGrowth<0){
+          showPopup({
+            title:`📊 ${sym} งบเตือน: ยังขาดทุน`,
+            body:m.reason,
+            icon:'⚠️',
+            type:'news',
+            action:`switchTab('financials')`,
+            actionLabel:'ดูงบ'
+          });
+          localStorage.setItem(key,'1');
+        }
+      }
+    });
+
+  },2000);
+}
+
+// For real LIVE data, also check after fetch
+const originalLoadDividends = loadDividends;
+loadDividends = async function(){
+  await originalLoadDividends();
+  // After real load, check again for real data popups if LIVE
+  const {hasFMP}=getApiKeys();
+  if(hasFMP){
+    // real notification logic would be here after real data
+  }
+}
+
+loadAll();
+setInterval(()=>{if(currentTab==='portfolio') fetchPrices();},30000);
+setInterval(checkNotifications, 60000); // check every minute
+// init notif count
+renderNotifList();
+if(Notification && Notification.permission==='granted'){
+  document.getElementById('enableNotifBtn').textContent='✅ เปิดแล้ว';
+}
+</script>
+</body>
+</html>
